@@ -1,12 +1,15 @@
 import nodemailer from "nodemailer";
 import { jsPDF } from "jspdf";
-import "jspdf-autotable"; // plugin for tables
+import "jspdf-autotable";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 
-dotenv.config(); // Load environment variables from .env
+// Load .env only when NOT in GitHub Actions
+if (process.env.GITHUB_ACTIONS !== "true") {
+  dotenv.config();
+}
 
-// --- Fetch scanner.json from your hosting ---
+// --- Fetch scanner.json ---
 async function getScannerData() {
   const url = "https://dashproduction.x10.mx/masterfile/scanner/machining/barcode/scanner.json";
   try {
@@ -19,18 +22,14 @@ async function getScannerData() {
   }
 }
 
-// --- Filter only today's data ---
+// --- Filter only today's entries ---
 function filterToday(data) {
   const today = new Date();
-  const todayStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`; // MM/DD/YYYY
-  return data.filter(d => {
-    // Remove any escaped slashes in dates
-    const cleanedDate = d.date.replace(/\\/g, "");
-    return cleanedDate === todayStr;
-  });
+  const todayStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+  return data.filter(d => d.date.replace(/\\/g, "") === todayStr);
 }
 
-// --- Generate PDF & send email ---
+// --- PDF + Email ---
 async function generateAndSendDailyReport() {
   try {
     const data = await getScannerData();
@@ -41,49 +40,47 @@ async function generateAndSendDailyReport() {
       return;
     }
 
-    // --- Create PDF ---
+    // PDF
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     doc.setFontSize(14);
     doc.text(`Daily Barcode Report - ${new Date().toLocaleDateString()}`, 105, 10, { align: "center" });
 
-    const tableData = todayData.map(d => [d.date, d.item, d.client, d.department, d.qty]);
     doc.autoTable({
       head: [["Date", "Item", "Client", "Department", "Quantity"]],
-      body: tableData,
+      body: todayData.map(d => [d.date, d.item, d.client, d.department, d.qty]),
       startY: 20,
       styles: { fontSize: 9 },
     });
 
     const pdfBytes = doc.output("arraybuffer");
 
-    // --- Check environment variables ---
+    // Check env vars
     if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
-      throw new Error("Missing Gmail credentials. Set GMAIL_USER and GMAIL_PASS in your .env file.");
+      throw new Error("Missing Gmail credentials.");
     }
 
-    // --- Email setup ---
+    // Email
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS, // App password
+        pass: process.env.GMAIL_PASS,
       },
     });
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: process.env.GMAIL_USER,
-      to: "judedabon123@gmail.com",
+      to: "judedabon123@gmail.com, primeconceptanddesign@gmail.com",
       subject: `Daily Barcode Report - ${new Date().toLocaleDateString()}`,
-      text: `Attached is the daily barcode report for ${new Date().toLocaleDateString()}.`,
+      text: `Attached is the daily barcode report.`,
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     console.log("Daily report email sent successfully!");
   } catch (err) {
-    console.error("Error generating/sending daily report:", err);
+    console.error("Error generating/sending report:", err);
   }
 }
 
-// Run immediately
+// Run
 generateAndSendDailyReport();
