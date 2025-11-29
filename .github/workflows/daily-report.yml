@@ -1,0 +1,28 @@
+name: Daily Report Sender
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # Runs daily at 09:00 UTC = 17:00 PH time
+  workflow_dispatch:       # Allows manual run
+
+jobs:
+  run-daily-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run daily report script
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
+        run: node daily-report.js
