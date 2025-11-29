@@ -1,0 +1,21 @@
+{
+  "name": "daily-report",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "chartjs-node-canvas": "^5.0.0",
+    "dotenv": "^17.2.3",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^6.10.1"
+  },
+  "scripts": {
+    "start": "node daily-report.js"
+  },
+  "description": "",
+  "main": "daily-report.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
