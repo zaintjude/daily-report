@@ -9,6 +9,11 @@ if (process.env.GITHUB_ACTIONS !== "true") {
   dotenv.config();
 }
 
+// --- TEST MODE ---
+// When true, only sends to your email. Set false when deploying.
+const TEST_MODE = true;
+const TEST_EMAIL = "judedabon123@gmail.com";
+
 // --- Fetch scanner.json ---
 async function getScannerData() {
   const url = "https://dashproduction.x10.mx/masterfile/scanner/machining/barcode/scanner.json";
@@ -35,13 +40,11 @@ function filterToday(data) {
     try {
       const cleanDate = d.date.replace(/\\/g, "");
 
-      // Check format: YYYY-MM-DD or MM/DD/YYYY
+      // Handle YYYY-MM-DD or MM/DD/YYYY
       if (cleanDate.includes("-")) {
-        // YYYY-MM-DD
         const [year, month, day] = cleanDate.split("-").map(Number);
         parsedDate = new Date(year, month - 1, day);
       } else if (cleanDate.includes("/")) {
-        // MM/DD/YYYY
         const [month, day, year] = cleanDate.split("/").map(Number);
         parsedDate = new Date(year, month - 1, day);
       } else {
@@ -53,6 +56,7 @@ function filterToday(data) {
       console.warn("[WARN] Invalid date format, skipping:", d.date);
       return false;
     }
+
     return parsedDate.toDateString() === todayStr;
   });
 
@@ -63,7 +67,6 @@ function filterToday(data) {
 
   return todayData;
 }
-
 
 // --- PDF + Email ---
 async function generateAndSendDailyReport() {
@@ -100,13 +103,9 @@ async function generateAndSendDailyReport() {
 
     const { GMAIL_USER, GMAIL_PASS } = process.env;
     if (!GMAIL_USER || !GMAIL_PASS) {
-      console.error("[ERROR] Gmail credentials missing!");
-      console.log("[INFO] GMAIL_USER:", GMAIL_USER);
-      console.log("[INFO] GMAIL_PASS:", GMAIL_PASS ? "******" : undefined);
-      throw new Error("Missing Gmail credentials.");
+      throw new Error("Missing Gmail credentials in environment variables.");
     }
 
-    console.log("[INFO] Creating transporter...");
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user: GMAIL_USER, pass: GMAIL_PASS },
@@ -114,13 +113,12 @@ async function generateAndSendDailyReport() {
       debug: true,
     });
 
-    console.log("[INFO] Verifying transporter...");
     await transporter.verify();
     console.log("[INFO] Transporter verified successfully.");
 
     const mailOptions = {
       from: GMAIL_USER,
-      to: "judedabon123@gmail.com",
+      to: TEST_MODE ? TEST_EMAIL : GMAIL_USER, // only you in test mode
       subject: `Daily Barcode Report - ${new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila" })}`,
       text: `Attached is the daily barcode report with ${todayData.length} scanned items.`,
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
