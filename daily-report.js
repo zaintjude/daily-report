@@ -70,7 +70,7 @@ async function generateAndSendDailyReport() {
 
     await transporter.sendMail({
       from: process.env.GMAIL_USER,
-      to: "judedabon123@gmail.com, primeconceptanddesign@gmail.com",
+      to: "judedabon123@gmail.com",
       subject: `Daily Barcode Report - ${new Date().toLocaleDateString()}`,
       text: `Attached is the daily barcode report.`,
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
