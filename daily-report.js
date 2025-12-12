@@ -10,7 +10,7 @@ if (process.env.GITHUB_ACTIONS !== "true") {
 }
 
 // --- TEST MODE ---
-// When true, only sends to your email. Set false when deploying.
+// When true, only sends to your email.
 const TEST_MODE = true;
 const TEST_EMAIL = "judedabon123@gmail.com";
 
@@ -38,17 +38,18 @@ function filterToday(data) {
     if (!d.date) return false;
     let parsedDate;
     try {
-      const cleanDate = d.date.replace(/\\/g, "");
+      const cleanDate = d.date.replace(/\\/g, "").trim();
 
       // Handle YYYY-MM-DD or MM/DD/YYYY
-      if (cleanDate.includes("-")) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
         const [year, month, day] = cleanDate.split("-").map(Number);
         parsedDate = new Date(year, month - 1, day);
-      } else if (cleanDate.includes("/")) {
+      } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(cleanDate)) {
         const [month, day, year] = cleanDate.split("/").map(Number);
         parsedDate = new Date(year, month - 1, day);
       } else {
-        throw new Error("Unknown date format");
+        console.warn("[WARN] Unknown date format, skipping:", d.date);
+        return false;
       }
 
       parsedDate = new Date(parsedDate.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
@@ -118,7 +119,7 @@ async function generateAndSendDailyReport() {
 
     const mailOptions = {
       from: GMAIL_USER,
-      to: TEST_MODE ? TEST_EMAIL : GMAIL_USER, // only you in test mode
+      to: TEST_MODE ? TEST_EMAIL : GMAIL_USER, // only send to you in test mode
       subject: `Daily Barcode Report - ${new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila" })}`,
       text: `Attached is the daily barcode report with ${todayData.length} scanned items.`,
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
