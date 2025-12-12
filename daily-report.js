@@ -34,8 +34,20 @@ function filterToday(data) {
     let parsedDate;
     try {
       const cleanDate = d.date.replace(/\\/g, "");
-      const [year, month, day] = cleanDate.split("-").map(Number);
-      parsedDate = new Date(year, month - 1, day);
+
+      // Check format: YYYY-MM-DD or MM/DD/YYYY
+      if (cleanDate.includes("-")) {
+        // YYYY-MM-DD
+        const [year, month, day] = cleanDate.split("-").map(Number);
+        parsedDate = new Date(year, month - 1, day);
+      } else if (cleanDate.includes("/")) {
+        // MM/DD/YYYY
+        const [month, day, year] = cleanDate.split("/").map(Number);
+        parsedDate = new Date(year, month - 1, day);
+      } else {
+        throw new Error("Unknown date format");
+      }
+
       parsedDate = new Date(parsedDate.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     } catch {
       console.warn("[WARN] Invalid date format, skipping:", d.date);
@@ -51,6 +63,7 @@ function filterToday(data) {
 
   return todayData;
 }
+
 
 // --- PDF + Email ---
 async function generateAndSendDailyReport() {
