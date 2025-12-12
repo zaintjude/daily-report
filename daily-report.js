@@ -24,15 +24,18 @@ async function getScannerData() {
   }
 }
 
-// --- Filter only today's entries (Cebu local time) ---
+// --- Filter today's entries robustly ---
 function filterToday(data) {
   const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
   const todayStr = today.toDateString();
 
   const todayData = data.filter(d => {
+    if (!d.date) return false;
     let parsedDate;
     try {
-      parsedDate = new Date(d.date.replace(/\\/g, ""));
+      // Handle both YYYY-MM-DD and MM/DD/YYYY formats
+      const cleanDate = d.date.replace(/\\/g, "");
+      parsedDate = new Date(cleanDate);
       parsedDate = new Date(parsedDate.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     } catch {
       console.warn("Invalid date format, skipping:", d.date);
@@ -79,30 +82,37 @@ async function generateAndSendDailyReport() {
 
     const pdfBytes = doc.output("arraybuffer");
 
-    // Check environment variables
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+    // Check Gmail credentials
+    const { GMAIL_USER, GMAIL_PASS } = process.env;
+    if (!GMAIL_USER || !GMAIL_PASS) {
       throw new Error("Missing Gmail credentials in environment variables.");
     }
 
-    // Send email
+    // Create transporter with debug
     const transporter = nodemailer.createTransport({
       service: "gmail",
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_PASS,
-      },
+      auth: { user: GMAIL_USER, pass: GMAIL_PASS },
+      logger: true, // logs SMTP activity
+      debug: true,
     });
 
     const mailOptions = {
-      from: process.env.GMAIL_USER,
+      from: GMAIL_USER,
       to: "judedabon123@gmail.com",
       subject: `Daily Barcode Report - ${new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila" })}`,
       text: `Attached is the daily barcode report with ${todayData.length} scanned items.`,
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log("Daily report email sent successfully!");
+    // Send email with callback to log success or error
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.error("Email failed:", err);
+      } else {
+        console.log("Email sent successfully!");
+        console.log("SMTP info:", info);
+      }
+    });
 
   } catch (err) {
     console.error("Error generating or sending report:", err);
