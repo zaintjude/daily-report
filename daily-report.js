@@ -22,21 +22,23 @@ async function getScannerData() {
   }
 }
 
-// --- Filter only today's entries robustly ---
+// --- Filter only today's entries (Cebu local time) ---
 function filterToday(data) {
-  const today = new Date();
-  const todayStr = today.toDateString(); // e.g., "Thu Dec 12 2025"
+  // Get current date in Cebu timezone
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  const todayStr = today.toDateString(); // e.g., "Fri Dec 12 2025"
 
   return data.filter(d => {
     let parsedDate;
-
     try {
-      parsedDate = new Date(d.date.replace(/\\/g, "")); // remove any backslashes
-    } catch (err) {
+      // Handle both YYYY-MM-DD and MM/DD/YYYY formats
+      parsedDate = new Date(d.date.replace(/\\/g, ""));
+      // Adjust parsedDate to Cebu timezone
+      parsedDate = new Date(parsedDate.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+    } catch {
       console.warn("Invalid date format:", d.date);
       return false;
     }
-
     return parsedDate.toDateString() === todayStr;
   });
 }
@@ -55,7 +57,12 @@ async function generateAndSendDailyReport() {
     // PDF
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     doc.setFontSize(14);
-    doc.text(`Daily Barcode Report - ${new Date().toLocaleDateString()}`, 105, 10, { align: "center" });
+    doc.text(
+      `Daily Barcode Report - ${new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila" })}`,
+      105,
+      10,
+      { align: "center" }
+    );
 
     doc.autoTable({
       head: [["Date", "Item", "Client", "Department", "Quantity"]],
@@ -83,7 +90,7 @@ async function generateAndSendDailyReport() {
     await transporter.sendMail({
       from: process.env.GMAIL_USER,
       to: "judedabon123@gmail.com",
-      subject: `Daily Barcode Report - ${new Date().toLocaleDateString()}`,
+      subject: `Daily Barcode Report - ${new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila" })}`,
       text: `Attached is the daily barcode report.`,
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
     });
