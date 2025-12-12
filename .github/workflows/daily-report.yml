@@ -2,7 +2,7 @@ name: Daily Report Sender - Test
 
 on:
   schedule:
-    - cron: "39 5 * * *"   # Adjust minute/hour to 1 minute ahead of current PH time
+    - cron: "47 5 * * *"   # Adjust minute/hour to 1 minute ahead of current PH time
   workflow_dispatch:       # Allows manual run
 
 jobs:
