@@ -34,7 +34,6 @@ function filterToday(data) {
     let parsedDate;
     try {
       const cleanDate = d.date.replace(/\\/g, "");
-      // parse as YYYY-MM-DD
       const [year, month, day] = cleanDate.split("-").map(Number);
       parsedDate = new Date(year, month - 1, day);
       parsedDate = new Date(parsedDate.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
@@ -86,19 +85,25 @@ async function generateAndSendDailyReport() {
     const pdfBytes = doc.output("arraybuffer");
     console.log("[INFO] PDF generated successfully.");
 
-    // Check Gmail credentials
     const { GMAIL_USER, GMAIL_PASS } = process.env;
     if (!GMAIL_USER || !GMAIL_PASS) {
-      throw new Error("Missing Gmail credentials in environment variables.");
+      console.error("[ERROR] Gmail credentials missing!");
+      console.log("[INFO] GMAIL_USER:", GMAIL_USER);
+      console.log("[INFO] GMAIL_PASS:", GMAIL_PASS ? "******" : undefined);
+      throw new Error("Missing Gmail credentials.");
     }
 
-    console.log("[INFO] Preparing to send email...");
+    console.log("[INFO] Creating transporter...");
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user: GMAIL_USER, pass: GMAIL_PASS },
-      logger: true, // logs SMTP activity
+      logger: true,
       debug: true,
     });
+
+    console.log("[INFO] Verifying transporter...");
+    await transporter.verify();
+    console.log("[INFO] Transporter verified successfully.");
 
     const mailOptions = {
       from: GMAIL_USER,
@@ -108,13 +113,14 @@ async function generateAndSendDailyReport() {
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
     };
 
-    // Await sending email
+    console.log("[INFO] Sending email...");
     const info = await transporter.sendMail(mailOptions);
     console.log("[SUCCESS] Email sent successfully!");
     console.log("[INFO] SMTP response:", info.response);
 
   } catch (err) {
     console.error("[ERROR] Error generating or sending report:", err);
+    if (err.response) console.error("[SMTP RESPONSE]", err.response);
   }
 }
 
