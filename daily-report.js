@@ -15,7 +15,9 @@ async function getScannerData() {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    console.log(`Fetched ${data.length} items from scanner.json`);
+    return data;
   } catch (err) {
     console.error("Failed to fetch scanner.json:", err);
     return [];
@@ -24,23 +26,27 @@ async function getScannerData() {
 
 // --- Filter only today's entries (Cebu local time) ---
 function filterToday(data) {
-  // Get current date in Cebu timezone
   const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-  const todayStr = today.toDateString(); // e.g., "Fri Dec 12 2025"
+  const todayStr = today.toDateString();
 
-  return data.filter(d => {
+  const todayData = data.filter(d => {
     let parsedDate;
     try {
-      // Handle both YYYY-MM-DD and MM/DD/YYYY formats
       parsedDate = new Date(d.date.replace(/\\/g, ""));
-      // Adjust parsedDate to Cebu timezone
       parsedDate = new Date(parsedDate.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     } catch {
-      console.warn("Invalid date format:", d.date);
+      console.warn("Invalid date format, skipping:", d.date);
       return false;
     }
     return parsedDate.toDateString() === todayStr;
   });
+
+  console.log(`Found ${todayData.length} items for today (${todayStr})`);
+  if (todayData.length > 0) {
+    console.log("Today's items:", todayData.map(i => `${i.date} | ${i.item} | ${i.client}`));
+  }
+
+  return todayData;
 }
 
 // --- PDF + Email ---
@@ -50,11 +56,11 @@ async function generateAndSendDailyReport() {
     const todayData = filterToday(data);
 
     if (!todayData.length) {
-      console.log("No data for today.");
+      console.log("No data for today. Email will not be sent.");
       return;
     }
 
-    // PDF
+    // Generate PDF
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     doc.setFontSize(14);
     doc.text(
@@ -65,20 +71,20 @@ async function generateAndSendDailyReport() {
     );
 
     doc.autoTable({
-      head: [["Date", "Item", "Client", "Department", "Quantity"]],
-      body: todayData.map(d => [d.date, d.item, d.client, d.department, d.qty]),
+      head: [["Date", "Item", "Client", "Department", "Quantity", "Barcode"]],
+      body: todayData.map(d => [d.date, d.item, d.client, d.department, d.qty, d.barcode]),
       startY: 20,
       styles: { fontSize: 9 },
     });
 
     const pdfBytes = doc.output("arraybuffer");
 
-    // Check env vars
+    // Check environment variables
     if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
-      throw new Error("Missing Gmail credentials.");
+      throw new Error("Missing Gmail credentials in environment variables.");
     }
 
-    // Email
+    // Send email
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -87,17 +93,19 @@ async function generateAndSendDailyReport() {
       },
     });
 
-    await transporter.sendMail({
+    const mailOptions = {
       from: process.env.GMAIL_USER,
       to: "judedabon123@gmail.com",
       subject: `Daily Barcode Report - ${new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila" })}`,
-      text: `Attached is the daily barcode report.`,
+      text: `Attached is the daily barcode report with ${todayData.length} scanned items.`,
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
-    });
+    };
 
+    await transporter.sendMail(mailOptions);
     console.log("Daily report email sent successfully!");
+
   } catch (err) {
-    console.error("Error generating/sending report:", err);
+    console.error("Error generating or sending report:", err);
   }
 }
 
