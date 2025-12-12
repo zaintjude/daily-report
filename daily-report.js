@@ -22,11 +22,23 @@ async function getScannerData() {
   }
 }
 
-// --- Filter only today's entries ---
+// --- Filter only today's entries robustly ---
 function filterToday(data) {
   const today = new Date();
-  const todayStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
-  return data.filter(d => d.date.replace(/\\/g, "") === todayStr);
+  const todayStr = today.toDateString(); // e.g., "Thu Dec 12 2025"
+
+  return data.filter(d => {
+    let parsedDate;
+
+    try {
+      parsedDate = new Date(d.date.replace(/\\/g, "")); // remove any backslashes
+    } catch (err) {
+      console.warn("Invalid date format:", d.date);
+      return false;
+    }
+
+    return parsedDate.toDateString() === todayStr;
+  });
 }
 
 // --- PDF + Email ---
