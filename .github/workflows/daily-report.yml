@@ -2,7 +2,7 @@ name: Daily Report Sender
 
 on:
   schedule:
-    - cron: "48 12 * * *"   # Runs daily at 09:00 UTC = 17:00 PH time
+    - cron: "53 4 * * *"   # Runs daily at 09:00 UTC = 17:00 PH time
   workflow_dispatch:       # Allows manual run
 
 jobs:
@@ -10,56 +10,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      # 3️⃣ Install dependencies
       - name: Install dependencies
-        run: |
-          echo "Installing dependencies..."
-          npm install
-          echo "Installed packages:"
-          npm list --depth=0
+        run: npm install
 
-      # 4️⃣ Debug info
-      - name: Debug info
-        run: |
-          echo "Node version:"
-          node -v
-          echo "NPM version:"
-          npm -v
-          echo "PH Time:"
-          TZ='Asia/Manila' date '+%Y-%m-%d %H:%M:%S'
-          echo "Files in repo:"
-          ls -R
-          echo "daily-report folder contents:"
-          ls -R daily-report
-
-      # 5️⃣ Run daily report script
       - name: Run daily report script
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_PASS: ${{ secrets.GMAIL_PASS }}
-        run: |
-          echo "Checking Gmail credentials..."
-          if [ -z "$GMAIL_USER" ] || [ -z "$GMAIL_PASS" ]; then
-            echo "Error: Gmail credentials not set!"
-            exit 1
-          fi
-
-          echo "Running daily-report.js..."
-          node daily-report/daily-report.js || {
-            echo "daily-report.js failed. Check logs."
-            exit 1
-          }
-
-      # 6️⃣ Confirm run
-      - name: Confirm completion
-        run: echo "Daily report workflow completed."
+        run: node daily-report.js
