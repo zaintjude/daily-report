@@ -34,7 +34,9 @@ function filterToday(data) {
     let parsedDate;
     try {
       const cleanDate = d.date.replace(/\\/g, "");
-      parsedDate = new Date(cleanDate);
+      // parse as YYYY-MM-DD
+      const [year, month, day] = cleanDate.split("-").map(Number);
+      parsedDate = new Date(year, month - 1, day);
       parsedDate = new Date(parsedDate.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     } catch {
       console.warn("[WARN] Invalid date format, skipping:", d.date);
@@ -106,14 +108,10 @@ async function generateAndSendDailyReport() {
       attachments: [{ filename: "daily-report.pdf", content: Buffer.from(pdfBytes) }],
     };
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error("[ERROR] Email failed:", err);
-      } else {
-        console.log("[SUCCESS] Email sent successfully!");
-        console.log("[INFO] SMTP response:", info.response || info);
-      }
-    });
+    // Await sending email
+    const info = await transporter.sendMail(mailOptions);
+    console.log("[SUCCESS] Email sent successfully!");
+    console.log("[INFO] SMTP response:", info.response);
 
   } catch (err) {
     console.error("[ERROR] Error generating or sending report:", err);
