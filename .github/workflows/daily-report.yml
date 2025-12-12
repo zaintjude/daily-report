@@ -2,7 +2,7 @@ name: Daily Report Sender
 
 on:
   schedule:
-    - cron: "02 5 * * *"   # Runs daily at 09:00 UTC = 17:00 PH time
+    - cron: "08 5 * * *"   # Runs daily at 09:00 UTC = 17:00 PH time
   workflow_dispatch:       # Allows manual run
 
 jobs:
